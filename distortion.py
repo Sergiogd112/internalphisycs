@@ -1,38 +1,32 @@
 import numpy as np
 import cv2
-import glob
+from matplotlib import pyplot as plt
 
-# termination criteria
-criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
+# Define camera matrix K
+K = np.array([[673.9683892, 0., 343.68638231],
+              [0., 676.08466459, 245.31865398],
+              [0., 0., 1.]])
 
-# prepare object points, like (0,0,0), (1,0,0), (2,0,0) ....,(6,5,0)
-objp = np.zeros((6 * 7, 3), np.float32)
-objp[:, :2] = np.mgrid[0:7, 0:6].T.reshape(-1, 2)
+# Define distortion coefficients d
+d = np.array([5.44787247e-02, 1.23043244e-01, -4.52559581e-04, 5.47011732e-03, -6.83110234e-01])
 
-# Arrays to store object points and image points from all the images.
-objpoints = []  # 3d point in real world space
-imgpoints = []  # 2d points in image plane.
+# Read an example image and acquire its size
+img = cv2.imread("Analema/imagen_1565636415_withiso_0_withexpo_22996.png")
+h, w = img.shape[:2]
 
-images = glob.glob('*.png')
-print('starting for')
-for fname in images:
-    img = cv2.imread(fname)
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+# Generate new camera matrix from parameters
+newcameramatrix, roi = cv2.getOptimalNewCameraMatrix(K, d, (w,h), 0)
 
-    # Find the chess board corners
-    ret, corners = cv2.findChessboardCorners(gray, (7, 6), None)
+# Generate look-up tables for remapping the camera image
+mapx, mapy = cv2.initUndistortRectifyMap(K, d, None, newcameramatrix, (w, h), 5)
 
-    # If found, add object points, image points (after refining them)
-    if (ret == True):
-        objpoints.append(objp)
+# Remap the original image to a new image
+newimg = cv2.remap(img, mapx, mapy, cv2.INTER_LINEAR)
 
-        corners2 = cv2.cornerSubPix(
-            gray, corners, (11, 11), (-1, -1), criteria)
-        imgpoints.append(corners2)
-
-        # Draw and display the corners
-        img = cv2.drawChessboardCorners(img, (7, 6), corners2, ret)
-        cv2.imshow('img', img)
-        cv2.waitKey(500)
-
-cv2.destroyAllWindows()
+# Display old and new image
+fig, (oldimg_ax, newimg_ax) = plt.subplots(1, 2)
+oldimg_ax.imshow(img)
+oldimg_ax.set_title('Original image')
+newimg_ax.imshow(newimg)
+newimg_ax.set_title('Unwarped image')
+# plt.show()
